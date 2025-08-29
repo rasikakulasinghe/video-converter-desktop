@@ -1,0 +1,51 @@
+# .gitignore for Video Converter Project
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build output
+/dist/
+/build/
+
+# Custom Directories
+.bmad-Core
+.temp/
+.bmad-creative-writing/
+.claude/
+.bmad-voice/
+docs/
+
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Misc
+*.bak
+*.tmp
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Video Converter specific
+/output/
+/temp/
+
+# Ignore docs build artifacts
+/docs/*.html
+/docs/*.pdf
