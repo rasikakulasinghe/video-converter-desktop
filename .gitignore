@@ -16,6 +16,7 @@ yarn-error.log*
 .claude/
 .bmad-voice/
 docs/
+.github/
 
 Thumbs.db
 
