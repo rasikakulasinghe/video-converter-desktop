@@ -4,8 +4,8 @@ logs
 
 node_modules
 dist
-.bmad-creative-writing
-.bmad-core
+bmad-creative-writing
+bmad-core
 
 # Editor directories and files
 .vscode/*

@@ -14,7 +14,7 @@ const __dirname = dirname(__filename);
 // }
 
 function createWindow(): void {
-  // Create the browser window.
+  // Create the browser window with Windows-specific optimizations
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -22,13 +22,22 @@ function createWindow(): void {
     minHeight: 600,
     show: false,
     autoHideMenuBar: true,
-    titleBarStyle: 'default',
+    titleBarStyle: 'default', // Use Windows native title bar
+    backgroundColor: '#ffffff', // Match Windows light theme
+    frame: true, // Use native window frame for Windows integration
+    transparent: false, // Better performance on Windows
     webPreferences: {
       preload: join(__dirname, './preload.js'),
-      sandbox: false,
+      sandbox: true, // Enhanced security
       contextIsolation: true,
-      nodeIntegration: false
-    }
+      nodeIntegration: false,
+      webSecurity: true, // Enforce web security
+      allowRunningInsecureContent: false,
+      experimentalFeatures: false
+    },
+    // Windows-specific settings
+    icon: join(__dirname, '../../build/icon.ico'), // Windows app icon
+    thickFrame: true // Native Windows resize handles
   });
 
   mainWindow.on('ready-to-show', () => {
@@ -53,8 +62,8 @@ function createWindow(): void {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
-  // Set app user model id for windows
-  electronApp.setAppUserModelId('com.video-converter');
+  // Set app user model id for Windows taskbar grouping
+  electronApp.setAppUserModelId('com.videoconverter.app');
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
@@ -63,8 +72,10 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window);
   });
 
-  // IPC test
-  ipcMain.on('ping', () => console.log('pong'));
+  // Remove test IPC handler in production
+  if (is.dev) {
+    ipcMain.on('ping', () => console.log('pong'));
+  }
 
   createWindow();
 

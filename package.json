@@ -53,13 +53,17 @@
     },
     "files": [
       "dist-electron/**/*",
-      "dist/**/*"
+      "dist/**/*",
+      "!**/node_modules/**/tailwindcss*/**/*",
+      "!**/*.wasm"
     ],
     "extraMetadata": {
       "main": "dist-electron/main.js"
     },
     "npmRebuild": false,
-    "forceCodeSigning": false,
+    "nodeGypRebuild": false,
+    "buildDependenciesFromSource": false,
+    "nativeRebuilder": "sequential",
     "win": {
       "target": [
         {
@@ -69,7 +73,9 @@
           ]
         }
       ],
-      "icon": "build/icon.ico"
+      "publisherName": "Video Converter Team",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
       "oneClick": false,

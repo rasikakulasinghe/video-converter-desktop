@@ -1,19 +1,21 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
-// Custom APIs for renderer
+// Secure API interface for renderer process
 const api = {
-  // File system operations
+  // File system operations with Windows-optimized dialogs
   selectFile: () => ipcRenderer.invoke('select-file'),
   selectSaveLocation: () => ipcRenderer.invoke('select-save-location'),
   selectDirectory: () => ipcRenderer.invoke('select-directory'),
-  
-  // IPC communication
-  ping: () => ipcRenderer.invoke('ping'),
-  
-  // Platform information
+
+  // IPC communication (development only)
+  ...(process.env.NODE_ENV === 'development' && {
+    ping: () => ipcRenderer.invoke('ping')
+  }),
+
+  // Platform information (read-only)
   platform: process.platform,
-  
-  // Version information
+
+  // Version information (read-only)
   versions: {
     node: process.versions.node,
     chrome: process.versions.chrome,

@@ -1,14 +1,16 @@
-import { contextBridge, ipcRenderer } from "electron";
-const api = {
-  // File system operations
-  selectFile: () => ipcRenderer.invoke("select-file"),
-  selectSaveLocation: () => ipcRenderer.invoke("select-save-location"),
-  selectDirectory: () => ipcRenderer.invoke("select-directory"),
-  // IPC communication
-  ping: () => ipcRenderer.invoke("ping"),
-  // Platform information
+import { ipcRenderer as e, contextBridge as s } from "electron";
+const o = {
+  // File system operations with Windows-optimized dialogs
+  selectFile: () => e.invoke("select-file"),
+  selectSaveLocation: () => e.invoke("select-save-location"),
+  selectDirectory: () => e.invoke("select-directory"),
+  // IPC communication (development only)
+  ...process.env.NODE_ENV === "development" && {
+    ping: () => e.invoke("ping")
+  },
+  // Platform information (read-only)
   platform: process.platform,
-  // Version information
+  // Version information (read-only)
   versions: {
     node: process.versions.node,
     chrome: process.versions.chrome,
@@ -16,8 +18,7 @@ const api = {
   }
 };
 try {
-  contextBridge.exposeInMainWorld("electronAPI", api);
-} catch (error) {
-  console.error(error);
-  window.electronAPI = api;
+  s.exposeInMainWorld("electronAPI", o);
+} catch (r) {
+  console.error(r), window.electronAPI = o;
 }

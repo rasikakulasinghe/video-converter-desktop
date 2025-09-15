@@ -4,7 +4,9 @@
       "Bash(electron-builder:*)",
       "Bash(npx electron-builder:*)",
       "Bash(timeout 15s npm run electron:dev)",
-      "Bash(npm run build:electron:*)"
+      "Bash(npm run build:electron:*)",
+      "Bash(npm run lint)",
+      "Bash(npm run electron:pack:*)"
     ],
     "deny": [],
     "ask": []
