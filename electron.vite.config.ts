@@ -4,12 +4,28 @@ import path from 'path'
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()]
+    plugins: [externalizeDepsPlugin()],
+    build: {
+      lib: {
+        entry: path.resolve(__dirname, 'electron/main.ts')
+      }
+    }
   },
   preload: {
-    plugins: [externalizeDepsPlugin()]
+    plugins: [externalizeDepsPlugin()],
+    build: {
+      lib: {
+        entry: path.resolve(__dirname, 'electron/preload.ts')
+      }
+    }
   },
   renderer: {
+    root: '.',
+    build: {
+      rollupOptions: {
+        input: path.resolve(__dirname, 'index.html')
+      }
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src')

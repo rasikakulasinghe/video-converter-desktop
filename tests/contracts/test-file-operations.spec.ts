@@ -13,6 +13,9 @@ vi.mock('electron', () => ({
   },
 }))
 
+// Import handlers to trigger registration
+import { FileOperationsHandlers } from '../../electron/handlers/file-operations.handlers.js'
+
 // Types from IPC contracts
 interface FileSelectionResult {
   success: boolean
@@ -27,8 +30,13 @@ interface SaveLocationResult {
 }
 
 describe('File Operations IPC Contracts', () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let handlers: FileOperationsHandlers
+
   beforeEach(() => {
     vi.clearAllMocks()
+    // Instantiate handlers to trigger IPC registration
+    handlers = new FileOperationsHandlers()
   })
 
   describe('file:select', () => {
@@ -45,10 +53,9 @@ describe('File Operations IPC Contracts', () => {
       } as FileSelectionResult)
 
       // Simulate handler registration
-      ;(ipcMain.handle as any).mockImplementation((channel: string, handler: any) => {
-        if (channel === 'file:select') {
-          return handler()
-        }
+      const mockImplementation = ipcMain.handle as ReturnType<typeof vi.fn>
+      mockImplementation.mockImplementation(() => {
+        return mockHandler()
       })
 
       const result = await mockHandler()
@@ -158,7 +165,7 @@ describe('File Operations IPC Contracts', () => {
       // file:select should accept no parameters
       // file:save-location should accept optional defaultPath string
       const fileSelectHandler = () => Promise.resolve({} as FileSelectionResult)
-      const saveLocationHandler = (defaultPath?: string) =>
+      const saveLocationHandler = () =>
         Promise.resolve({} as SaveLocationResult)
 
       expect(fileSelectHandler).toBeInstanceOf(Function)
