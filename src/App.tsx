@@ -7,13 +7,14 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { FileVideo, FolderOpen, Settings, Play, Square, CheckCircle, AlertCircle, Info } from 'lucide-react'
-import type { 
-  VideoFile, 
-  ConversionJob, 
+import type {
+  VideoFile,
+  ConversionJob,
   ConversionSettings,
   ConversionQuality,
   OutputFormat
 } from '../shared/types'
+import { VideoFileUtils } from '../shared/types/video-file'
 import type { 
   ProgressEvent, 
   CompletedEvent, 
@@ -127,26 +128,16 @@ function App() {
         const validation = await window.electronAPI.file.validate({ filePath })
         console.log('Validation response:', validation)
         
-        if (validation.isValid) {
+        if (validation.isValid && validation.metadata) {
           const videoFile: VideoFile = {
             id: crypto.randomUUID(),
             name: filePath.split(/[\\/]/).pop() || filePath,
             path: filePath,
-            extension: '.' + (validation.metadata?.format || 'unknown'),
-            mimeType: `video/${validation.metadata?.format || 'unknown'}`,
+            extension: '.' + (filePath.split('.').pop()?.toLowerCase() || 'unknown'),
+            mimeType: VideoFileUtils.getMimeType('.' + (filePath.split('.').pop()?.toLowerCase() || 'unknown')),
             isValid: true,
-            metadata: {
-              duration: validation.metadata?.duration || 0,
-              width: validation.metadata?.resolution?.width || 0,
-              height: validation.metadata?.resolution?.height || 0,
-              frameRate: validation.metadata?.frameRate || 0,
-              bitrate: validation.metadata?.bitrate || 0,
-              codec: validation.metadata?.videoCodec || 'unknown',
-              audioCodec: validation.metadata?.audioCodec,
-              fileSize: validation.metadata?.size || 0,
-              createdAt: new Date(),
-              modifiedAt: new Date()
-            },
+            metadata: validation.metadata,
+            thumbnail: validation.thumbnail,
             addedAt: new Date()
           }
           setSelectedFile(videoFile)
@@ -265,108 +256,190 @@ function App() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-6 py-4">
+      <header className="border-b bg-card/50">
+        <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <FileVideo className="h-8 w-8 text-primary" />
+            <div className="flex items-center space-x-2">
+              <FileVideo className="h-6 w-6 text-primary" />
               <div>
-                <h1 className="text-2xl font-bold">Video Converter</h1>
-                <p className="text-sm text-muted-foreground">
-                  Convert your videos to web-optimized formats
+                <h1 className="text-xl font-semibold">Video Converter</h1>
+                <p className="text-xs text-muted-foreground">
+                  Convert videos to web-optimized formats
                 </p>
               </div>
             </div>
             {isElectron && (
-              <Badge variant="outline" className="font-mono text-xs">
-                Electron {window.electronAPI.versions.electron}
+              <Badge variant="outline" className="font-mono text-xs px-2 py-1">
+                v{window.electronAPI.versions.electron}
               </Badge>
             )}
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-6 py-8 space-y-8">
+      <main className="container mx-auto px-4 py-6 space-y-6">
+        {/* IPC Test Section (Debug Only) */}
+        {isElectron && process.env.NODE_ENV === 'development' && (
+          <Card className="border-dashed">
+            <CardHeader>
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Info className="h-4 w-4" />
+                IPC Test (Debug)
+              </CardTitle>
+              <CardDescription>
+                Test IPC channels to validate backend connectivity
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      const result = await window.electronAPI.test.ping()
+                      setSuccess(`Ping: ${result.message}`)
+                    } catch (err) {
+                      setError(`Ping failed: ${err}`)
+                    }
+                  }}
+                >
+                  Test Ping
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      const result = await window.electronAPI.file.select()
+                      setSuccess(`File select: ${JSON.stringify(result)}`)
+                    } catch (err) {
+                      setError(`File select failed: ${err}`)
+                    }
+                  }}
+                >
+                  Test File Select
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      const result = await window.electronAPI.app.getSession()
+                      setSuccess(`Session: ${result.session.id}`)
+                    } catch (err) {
+                      setError(`Get session failed: ${err}`)
+                    }
+                  }}
+                >
+                  Test Session
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      const result = await window.electronAPI.app.getPreferences()
+                      setSuccess(`Preferences: ${JSON.stringify(result.preferences)}`)
+                    } catch (err) {
+                      setError(`Get preferences failed: ${err}`)
+                    }
+                  }}
+                >
+                  Test Prefs
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Error Alert */}
         {error && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
+          <Alert variant="destructive" className="py-2">
+            <AlertCircle className="h-3 w-3" />
+            <AlertDescription className="text-xs">{error}</AlertDescription>
           </Alert>
         )}
 
         {/* Success Alert */}
         {success && (
-          <Alert>
-            <CheckCircle className="h-4 w-4" />
-            <AlertDescription>{success}</AlertDescription>
+          <Alert className="py-2">
+            <CheckCircle className="h-3 w-3" />
+            <AlertDescription className="text-xs">{success}</AlertDescription>
           </Alert>
         )}
 
         {/* File Selection */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <FileVideo className="h-5 w-5" />
-              <span>Select Video File</span>
-            </CardTitle>
-            <CardDescription>
-              Choose a video file to convert. Supported formats: MP4, AVI, MOV, MKV, WebM, FLV
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <FileVideo className="h-4 w-4 text-primary" />
+                <CardTitle className="text-base">Input Video</CardTitle>
+              </div>
+              <Button
+                onClick={handleFileSelect}
+                disabled={!isElectron || isValidating}
+                size="sm"
+                variant="outline"
+              >
+                <FolderOpen className="h-3 w-3 mr-1" />
+                {isValidating ? 'Validating...' : 'Select File'}
+              </Button>
+            </div>
+            <CardDescription className="text-xs">
+              Supported: MP4, AVI, MOV, MKV, WebM, FLV
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <Button 
-              onClick={handleFileSelect} 
-              disabled={!isElectron || isValidating}
-              className="w-full sm:w-auto"
-            >
-              <FolderOpen className="h-4 w-4 mr-2" />
-              {isValidating ? 'Validating...' : 'Choose Video File'}
-            </Button>
 
-            {selectedFile && selectedFile.metadata && (
-              <div className="p-4 border rounded-lg bg-muted/50 space-y-2">
+          {selectedFile && selectedFile.metadata && (
+            <CardContent className="pt-0">
+              <div className="p-3 border rounded-md bg-muted/30 space-y-2">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-medium">{selectedFile.name}</h4>
-                  <Badge variant="secondary">{selectedFile.extension.replace('.', '').toUpperCase()}</Badge>
+                  <span className="font-medium text-sm truncate">{selectedFile.name}</span>
+                  <Badge variant="secondary" className="text-xs">{selectedFile.extension.replace('.', '').toUpperCase()}</Badge>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm text-muted-foreground">
-                  <div>
-                    <span className="font-medium">Size:</span> {formatFileSize(selectedFile.metadata.fileSize)}
+                <div className="grid grid-cols-4 gap-3 text-xs text-muted-foreground">
+                  <div className="text-center">
+                    <div className="font-medium">{formatFileSize(selectedFile.metadata.fileSize)}</div>
+                    <div>Size</div>
                   </div>
-                  <div>
-                    <span className="font-medium">Duration:</span> {formatDuration(selectedFile.metadata.duration)}
+                  <div className="text-center">
+                    <div className="font-medium">{formatDuration(selectedFile.metadata.duration)}</div>
+                    <div>Duration</div>
                   </div>
-                  <div>
-                    <span className="font-medium">Resolution:</span> {selectedFile.metadata.width}x{selectedFile.metadata.height}
+                  <div className="text-center">
+                    <div className="font-medium">{selectedFile.metadata.width}×{selectedFile.metadata.height}</div>
+                    <div>Resolution</div>
                   </div>
-                  <div>
-                    <span className="font-medium">Bitrate:</span> {Math.round(selectedFile.metadata.bitrate / 1000)}k
+                  <div className="text-center">
+                    <div className="font-medium">{Math.round(selectedFile.metadata.bitrate / 1000)}k</div>
+                    <div>Bitrate</div>
                   </div>
                 </div>
               </div>
-            )}
-          </CardContent>
+            </CardContent>
+          )}
         </Card>
 
         {/* Conversion Settings */}
         {selectedFile && (
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Settings className="h-5 w-5" />
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center space-x-2 text-base">
+                <Settings className="h-4 w-4" />
                 <span>Conversion Settings</span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Output Format</label>
-                  <Select 
-                    value={conversionSettings.format} 
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Output Format</label>
+                  <Select
+                    value={conversionSettings.format}
                     onValueChange={(value: OutputFormat) => setConversionSettings(prev => ({ ...prev, format: value }))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-8">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -379,53 +452,53 @@ function App() {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Quality</label>
-                  <Select 
-                    value={conversionSettings.quality} 
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Quality</label>
+                  <Select
+                    value={conversionSettings.quality}
                     onValueChange={(value: ConversionQuality) => setConversionSettings(prev => ({ ...prev, quality: value }))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-8">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="ultra">Ultra Quality</SelectItem>
                       <SelectItem value="high">High Quality</SelectItem>
                       <SelectItem value="medium">Medium Quality</SelectItem>
                       <SelectItem value="low">Low Quality</SelectItem>
-                      <SelectItem value="ultra">Ultra Quality</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
-              <Separator />
-
-              <div className="space-y-4">
-                <Button 
-                  onClick={handleOutputSelect} 
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button
+                  onClick={handleOutputSelect}
                   disabled={!isElectron}
                   variant="outline"
-                  className="w-full sm:w-auto"
+                  size="sm"
+                  className="flex-1"
                 >
-                  <FolderOpen className="h-4 w-4 mr-2" />
-                  Choose Save Location
+                  <FolderOpen className="h-3 w-3 mr-1" />
+                  Save Location
                 </Button>
 
-                {outputPath && (
-                  <div className="p-3 bg-muted rounded-lg">
-                    <p className="text-sm font-mono break-all">{outputPath}</p>
-                  </div>
-                )}
-
-                <Button 
+                <Button
                   onClick={handleStartConversion}
                   disabled={!selectedFile || !outputPath || !isElectron || activeJobs.size > 0}
-                  className="w-full sm:w-auto"
+                  size="sm"
+                  className="flex-1 sm:flex-none"
                 >
-                  <Play className="h-4 w-4 mr-2" />
-                  Start Conversion
+                  <Play className="h-3 w-3 mr-1" />
+                  Convert
                 </Button>
               </div>
+
+              {outputPath && (
+                <div className="p-2 bg-muted/50 rounded text-xs font-mono break-all text-muted-foreground">
+                  {outputPath}
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
@@ -433,77 +506,81 @@ function App() {
         {/* Active Conversions */}
         {activeJobs.size > 0 && (
           <Card>
-            <CardHeader>
-              <CardTitle>Active Conversions</CardTitle>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Conversion Progress</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {Array.from(activeJobs.values()).map((job) => (
-                  <div key={job.id} className="p-4 border rounded-lg space-y-3">
+                  <div key={job.id} className="p-3 border rounded-md space-y-2">
                     <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-medium">{job.inputFile.name}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {job.inputFile.extension.replace('.', '').toUpperCase()} → {job.settings.format.toUpperCase()}
-                        </p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center space-x-2">
+                          <span className="font-medium text-sm truncate">{job.inputFile.name}</span>
+                          <Badge variant="outline" className="text-xs shrink-0">
+                            {job.inputFile.extension.replace('.', '').toUpperCase()} → {job.settings.format.toUpperCase()}
+                          </Badge>
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge 
+                      <div className="flex items-center space-x-2 shrink-0">
+                        <Badge
                           variant={
                             job.status === 'completed' ? 'default' :
                             job.status === 'failed' ? 'destructive' :
                             job.status === 'processing' ? 'secondary' : 'outline'
                           }
+                          className="text-xs"
                         >
                           {job.status}
                         </Badge>
                         {job.status === 'processing' && (
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
+                          <Button
+                            size="sm"
+                            variant="outline"
                             onClick={() => handleCancelConversion(job.id)}
+                            className="h-6 px-2"
                           >
-                            <Square className="h-3 w-3 mr-1" />
-                            Cancel
+                            <Square className="h-3 w-3" />
                           </Button>
                         )}
                       </div>
                     </div>
 
                     {job.status === 'processing' && job.progress && (
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>Progress: {job.progress.stage}</span>
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>{job.progress.stage}</span>
                           <span>{job.progress.percentage}%</span>
                         </div>
-                        <Progress value={job.progress.percentage} className="h-2" />
+                        <Progress value={job.progress.percentage} className="h-1.5" />
                         {job.progress.eta > 0 && (
                           <p className="text-xs text-muted-foreground">
-                            Estimated time remaining: {formatDuration(job.progress.eta)}
+                            ETA: {formatDuration(job.progress.eta)}
                           </p>
                         )}
                       </div>
                     )}
 
                     {job.status === 'failed' && (
-                      <Alert variant="destructive">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertDescription>Conversion failed</AlertDescription>
-                      </Alert>
+                      <div className="flex items-center space-x-2 text-destructive">
+                        <AlertCircle className="h-3 w-3" />
+                        <span className="text-xs">Conversion failed</span>
+                      </div>
                     )}
 
                     {job.status === 'completed' && job.outputPath && (
-                      <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/20 rounded border border-green-200 dark:border-green-800">
+                      <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-950/20 rounded border border-green-200 dark:border-green-800">
                         <div className="flex items-center space-x-2">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          <span className="text-sm font-medium">Conversion completed!</span>
+                          <CheckCircle className="h-3 w-3 text-green-600" />
+                          <span className="text-xs font-medium">Completed successfully</span>
                         </div>
-                        <Button 
-                          size="sm" 
+                        <Button
+                          size="sm"
                           variant="outline"
                           onClick={() => isElectron && window.electronAPI.system.showInExplorer({ filePath: job.outputPath! })}
+                          className="h-6 px-2 text-xs"
                         >
-                          Show in Folder
+                          Show
                         </Button>
                       </div>
                     )}
@@ -516,10 +593,10 @@ function App() {
 
         {/* Web Notice */}
         {!isElectron && (
-          <Alert>
-            <Info className="h-4 w-4" />
-            <AlertDescription>
-              This application requires the desktop version to access file system operations and video conversion features.
+          <Alert className="py-2">
+            <Info className="h-3 w-3" />
+            <AlertDescription className="text-xs">
+              Desktop version required for file operations and video conversion.
             </AlertDescription>
           </Alert>
         )}

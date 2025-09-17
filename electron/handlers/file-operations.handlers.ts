@@ -1,6 +1,6 @@
 /**
  * File Operations IPC Handlers
- * 
+ *
  * Handles IPC communication for file operations including file selection,
  * save location dialogs, and file validation.
  */
@@ -27,6 +27,7 @@ export class FileOperationsHandlers {
   constructor() {
     this.fileService = FileOperationsService.getInstance()
     this.registerHandlers()
+    console.log('File operations IPC handlers registered')
   }
 
   /**
@@ -36,40 +37,18 @@ export class FileOperationsHandlers {
     // Register file:select handler
     ipcMain.handle(
       IPC_CHANNELS.FILE_SELECT,
-      async (event, request: SelectFilesRequest): Promise<IPCResponse<SelectFilesResponse>> => {
+      async (event, request?: SelectFilesRequest): Promise<SelectFilesResponse> => {
         try {
+          console.log('📂 file:select handler called with request:', request)
           const result = await this.fileService.selectFiles(request)
-          return {
-            success: true,
-            data: result
-          }
+          console.log('📂 file:select result:', result)
+          return result
         } catch (error) {
           console.error('Error in file:select handler:', error)
           return {
             success: false,
-            error: `File selection failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            details: error instanceof Error ? error.stack : undefined
-          }
-        }
-      }
-    )
-
-    // Register file:save-location handler
-    ipcMain.handle(
-      IPC_CHANNELS.FILE_SAVE_LOCATION,
-      async (event, request: SaveLocationRequest): Promise<IPCResponse<SaveLocationResponse>> => {
-        try {
-          const result = await this.fileService.selectSaveLocation(request)
-          return {
-            success: true,
-            data: result
-          }
-        } catch (error) {
-          console.error('Error in file:save-location handler:', error)
-          return {
-            success: false,
-            error: `Save location selection failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            details: error instanceof Error ? error.stack : undefined
+            filePaths: [],
+            error: error instanceof Error ? error.message : 'Unknown error'
           }
         }
       }
@@ -78,25 +57,40 @@ export class FileOperationsHandlers {
     // Register file:validate handler
     ipcMain.handle(
       IPC_CHANNELS.FILE_VALIDATE,
-      async (event, request: ValidateFileRequest): Promise<IPCResponse<ValidateFileResponse>> => {
+      async (event, request: ValidateFileRequest): Promise<ValidateFileResponse> => {
         try {
+          console.log('✅ file:validate handler called with request:', request)
           const result = await this.fileService.validateFile(request)
-          return {
-            success: true,
-            data: result
-          }
+          console.log('✅ file:validate result:', result)
+          return result
         } catch (error) {
           console.error('Error in file:validate handler:', error)
           return {
-            success: false,
-            error: `File validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            details: error instanceof Error ? error.stack : undefined
+            isValid: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
           }
         }
       }
     )
 
-    console.log('File operations IPC handlers registered')
+    // Register file:save-location handler
+    ipcMain.handle(
+      IPC_CHANNELS.FILE_SAVE_LOCATION,
+      async (event, request?: SaveLocationRequest): Promise<SaveLocationResponse> => {
+        try {
+          console.log('💾 file:save-location handler called with request:', request)
+          const result = await this.fileService.selectSaveLocation(request)
+          console.log('💾 file:save-location result:', result)
+          return result
+        } catch (error) {
+          console.error('Error in file:save-location handler:', error)
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          }
+        }
+      }
+    )
   }
 
   /**
@@ -106,7 +100,7 @@ export class FileOperationsHandlers {
     ipcMain.removeHandler(IPC_CHANNELS.FILE_SELECT)
     ipcMain.removeHandler(IPC_CHANNELS.FILE_SAVE_LOCATION)
     ipcMain.removeHandler(IPC_CHANNELS.FILE_VALIDATE)
-    
+
     console.log('File operations IPC handlers unregistered')
   }
 

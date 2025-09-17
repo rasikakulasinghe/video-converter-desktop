@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+﻿import { contextBridge, ipcRenderer } from 'electron';
 import type {
   SelectFilesRequest,
   SelectFilesResponse,
@@ -37,16 +37,13 @@ const api = {
   // File Operations
   file: {
     select: async (request?: SelectFilesRequest): Promise<SelectFilesResponse> => {
-      const response = await ipcRenderer.invoke('file:select', request)
-      return response.success ? response.data : { success: false, filePaths: [] }
+      return await ipcRenderer.invoke('file:select', request)
     },
     saveLocation: async (request?: SaveLocationRequest): Promise<SaveLocationResponse> => {
-      const response = await ipcRenderer.invoke('file:save-location', request)
-      return response.success ? response.data : { success: false }
+      return await ipcRenderer.invoke('file:save-location', request)
     },
     validate: async (request: ValidateFileRequest): Promise<ValidateFileResponse> => {
-      const response = await ipcRenderer.invoke('file:validate', request)
-      return response.success ? response.data : { isValid: false, error: 'Validation failed' }
+      return await ipcRenderer.invoke('file:validate', request)
     },
   },
 
@@ -54,11 +51,11 @@ const api = {
   conversion: {
     start: async (request: StartConversionRequest): Promise<StartConversionResponse> => {
       const response = await ipcRenderer.invoke('conversion:start', request)
-      return response.success ? response.data : { success: false }
+      return response.data || response
     },
     cancel: async (request: CancelConversionRequest): Promise<CancelConversionResponse> => {
       const response = await ipcRenderer.invoke('conversion:cancel', request)
-      return response.success ? response.data : { success: false }
+      return response.data || response
     },
   },
 
@@ -66,95 +63,27 @@ const api = {
   app: {
     getSession: async (request?: GetSessionRequest): Promise<GetSessionResponse> => {
       const response = await ipcRenderer.invoke('app:get-session', request)
-      return response.success ? response.data : { 
-        session: { 
-          id: '', 
-          createdAt: new Date(), 
-          lastActivity: new Date(), 
-          activeFiles: [], 
-          recentFiles: [], 
-          activeJobs: [] 
-        } 
-      }
+      return response.data || response
     },
     updateSession: async (request: UpdateSessionRequest): Promise<UpdateSessionResponse> => {
       const response = await ipcRenderer.invoke('app:update-session', request)
-      return response.success ? response.data : { 
-        session: { 
-          id: '', 
-          createdAt: new Date(), 
-          lastActivity: new Date(), 
-          activeFiles: [], 
-          recentFiles: [], 
-          activeJobs: [] 
-        } 
-      }
+      return response.data || response
     },
     getPreferences: async (request?: GetPreferencesRequest): Promise<GetPreferencesResponse> => {
       const response = await ipcRenderer.invoke('app:get-preferences', request)
-      return response.success ? response.data : {
-        output: {
-          defaultOutputDirectory: '',
-          defaultFormat: 'mp4',
-          defaultQuality: 'medium',
-          organizeByDate: false,
-          preserveOriginalNames: true,
-          namingPattern: '{name}_converted',
-          overwriteExisting: false
-        },
-        conversion: {
-          maxConcurrentJobs: 2,
-          autoStart: true,
-          shutdownWhenComplete: false,
-          showNotifications: true,
-          processPriority: 'normal',
-          preserveMetadata: true,
-          generateThumbnails: true
-        },
-        interface: {
-          theme: 'system',
-          language: 'en',
-          startMinimized: false,
-          minimizeToTray: true,
-          showProgressInTaskbar: true,
-          rememberLastPath: true
-        },
-        advanced: {
-          globalFFmpegArgs: [],
-          hardwareAcceleration: 'auto',
-          tempDirectory: '',
-          cleanupTempFiles: true,
-          logLevel: 'info',
-          enableMetrics: true,
-          maxLogSize: 50
-        },
-        version: '1.0.0',
-        updatedAt: new Date()
-      }
+      return response.data || response
     },
     setPreferences: async (request: SetPreferencesRequest): Promise<SetPreferencesResponse> => {
       const response = await ipcRenderer.invoke('app:set-preferences', request)
-      return response.success ? response.data : { success: false, requiresRestart: false }
+      return response.data || response
     },
     info: async (request?: GetAppInfoRequest): Promise<GetAppInfoResponse> => {
       const response = await ipcRenderer.invoke('app:info', request)
-      return response.success ? response.data : { 
-        appInfo: { 
-          name: '', 
-          version: '', 
-          description: '', 
-          author: '', 
-          homepage: '', 
-          license: '',
-          buildDate: '',
-          commitHash: '',
-          environment: ''
-        } 
-      }
+      return response.data || response
     },
     quit: async (request?: QuitAppRequest): Promise<QuitAppResponse> => {
       const response = await ipcRenderer.invoke('app:quit', request)
-      return response.success ? response.data : { success: false }
+      return response.data || response
     },
   },
 
@@ -162,11 +91,25 @@ const api = {
   system: {
     showInExplorer: async (request: ShowInExplorerRequest): Promise<ShowInExplorerResponse> => {
       const response = await ipcRenderer.invoke('system:show-in-explorer', request)
-      return response.success ? response.data : { success: false }
+      return response.data || response
     },
     openExternal: async (request: OpenExternalRequest): Promise<OpenExternalResponse> => {
       const response = await ipcRenderer.invoke('system:open-external', request)
-      return response.success ? response.data : { success: false }
+      return response.data || response
+    },
+  },
+
+  // Diagnostic/Test API for troubleshooting
+  test: {
+    ping: async (): Promise<{ message: string; timestamp: string }> => {
+      return await ipcRenderer.invoke('test:ping')
+    },
+    ipcStatus: async (): Promise<{
+      totalHandlers: number;
+      registeredChannels: string[];
+      timestamp: string;
+    }> => {
+      return await ipcRenderer.invoke('test:ipc-status')
     },
   },
 
@@ -204,10 +147,13 @@ const api = {
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
 // just add to the DOM global.
+console.log('🚀 Preload script is executing...');
 try {
   contextBridge.exposeInMainWorld('electronAPI', api);
+  console.log('✅ electronAPI exposed via contextBridge');
 } catch (error) {
-  console.error(error);
+  console.error('❌ contextBridge failed, falling back to window:', error);
   // @ts-expect-error (define in dts)
   window.electronAPI = api;
+  console.log('✅ electronAPI set on window object');
 }

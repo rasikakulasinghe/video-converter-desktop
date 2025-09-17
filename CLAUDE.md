@@ -4,162 +4,128 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Desktop Video Converter application built with Electron, React, and TypeScript. The application provides a simple, single-purpose tool to convert video files into web-optimized MP4 format with minimal user interaction. The project is currently in development stage with a fully configured build system.
+Desktop Video Converter is an Electron-based desktop application for Windows that provides a simple, single-purpose video conversion tool. The app converts video files to web-optimized MP4 format using FFmpeg, with a focus on simplicity and ease of use for non-technical users.
 
 ## Technology Stack
 
-- **Framework**: Electron 38.x (desktop application framework)
-- **UI Library**: React 19.x with TypeScript
-- **Build Tool**: Vite 7.x with Hot Module Replacement
-- **Styling**: Tailwind CSS 4.x (utility-first CSS framework)
-- **State Management**: React Hooks (useState, useContext)
-- **Testing**: Vitest + React Testing Library (configured but not implemented)
+- **Frontend**: React 18 + TypeScript + Tailwind CSS + Radix UI components
+- **Desktop Framework**: Electron 27 with electron-vite build system
+- **Video Processing**: FFmpeg via ffmpeg-static and fluent-ffmpeg
+- **Testing**: Vitest (unit), Playwright (e2e), custom IPC contract tests
+- **Build Tools**: electron-builder for packaging, Vite for bundling
+
+## Architecture
+
+### Multi-Process Structure
+- **Main Process** (`electron/main.ts`): Window management, IPC handlers, system integration
+- **Renderer Process** (`src/App.tsx`): React UI running in browser window
+- **Preload Script** (`electron/preload.ts`): Secure IPC bridge between main and renderer
+- **Shared Types** (`shared/types/`): TypeScript definitions used across all processes
+
+### Key Services
+- **ConversionService** (`electron/services/conversion.service.ts`): Job queue management, FFmpeg process handling, progress tracking
+- **FileValidationService**: Video file validation and metadata extraction
+- **IPC Contracts** (`shared/types/ipc-contracts.ts`): Type-safe communication between processes
+
+### State Management
+- Local React state for UI components
+- Electron store for persistent application preferences
+- Service layer maintains conversion job state
 
 ## Development Commands
 
-### Core Development
 ```bash
-# Start development server with hot reload
-npm run electron:dev
+# Development
+npm run dev              # Start development server with hot reload
+npm run preview          # Preview production build
 
-# Build production version
-npm run build:electron
+# Building
+npm run build            # Build for production
+npm run dist             # Build and package for distribution
+npm run dist:win         # Build Windows-specific package
 
-# Run frontend development server only
-npm run dev
+# Testing
+npm test                 # Run unit tests (Vitest)
+npm run test:e2e         # Run end-to-end tests (Playwright)
 
-# Build frontend only
-npm run build
+# Code Quality
+npm run lint             # Check code style and errors
+npm run lint:fix         # Auto-fix linting issues
+npm run type-check       # TypeScript type checking
+
+# Packaging
+npm run pack             # Package without creating installer
 ```
 
-### Quality Assurance
-```bash
-# Run ESLint
-npm run lint
+## Project Structure
 
-# Build and package for distribution (has known signing issues)
-npm run electron:pack
-
-# Create distributable installer
-npm run electron:dist
+```
+├── electron/           # Main process code
+│   ├── main.ts         # Entry point, window creation
+│   ├── preload.ts      # IPC bridge
+│   ├── handlers/       # IPC request handlers
+│   └── services/       # Business logic services
+├── src/                # Renderer process (React app)
+│   ├── components/     # Reusable UI components
+│   ├── hooks/          # Custom React hooks
+│   └── lib/            # Utility functions
+├── shared/             # Code shared between processes
+│   └── types/          # TypeScript type definitions
+├── tests/              # Test suites
+│   ├── unit/           # Unit tests
+│   ├── integration/    # Integration tests
+│   ├── e2e/            # End-to-end tests
+│   └── contracts/      # IPC contract tests
+└── build/              # Application assets and icons
 ```
 
-## Architecture Overview
+## Development Guidelines
 
-### Project Structure
-```
-├── electron/           # Electron-specific files
-│   ├── main.ts        # Main process (window management, IPC)
-│   ├── preload.ts     # Secure bridge between main and renderer
-│   └── tsconfig.json  # TypeScript config for Electron
-├── src/               # React frontend
-│   ├── App.tsx        # Main application component
-│   ├── main.tsx       # React entry point
-│   ├── global.d.ts    # TypeScript definitions for Electron API
-│   └── *.css          # Styling files
-├── dist/              # Built frontend assets
-├── dist-electron/     # Built Electron assets
-└── public/            # Static assets
-```
+### IPC Communication
+- All IPC communication uses typed contracts defined in `shared/types/ipc-contracts.ts`
+- Main process handlers are in `electron/handlers/`
+- Renderer uses `window.electronAPI` interface exposed by preload script
 
-### Inter-Process Communication (IPC)
-The application uses Electron's secure IPC pattern:
+### Video Conversion Flow
+1. File selection via native dialog (`electronAPI.file.select`)
+2. File validation (`electronAPI.file.validate`)
+3. Output location selection (`electronAPI.file.saveLocation`)
+4. Conversion start (`electronAPI.conversion.start`) creates job in ConversionService
+5. Progress events stream via IPC (`conversionProgress`, `conversionComplete`, `conversionError`)
 
-**Main Process** (`electron/main.ts`):
-- Handles file system operations via `ipcMain.handle()`
-- Provides file selection dialogs: `select-file`, `select-save-location`, `select-directory`
-- Manages application lifecycle and window creation
+### Testing Strategy
+- **Unit tests**: Individual component and service testing
+- **IPC contract tests**: Ensure type-safe communication between processes
+- **E2E tests**: Full user workflows using Playwright
+- Run `npm test` for unit tests, `npm run test:e2e` for full application testing
 
-**Preload Script** (`electron/preload.ts`):
-- Exposes safe APIs through `contextBridge.exposeInMainWorld('electronAPI', ...)`
-- Provides type-safe interface between renderer and main process
+### Component Library
+- Uses Radix UI primitives with custom Tailwind styling
+- Components are in `src/components/ui/` following shadcn/ui patterns
+- Consistent design system with dark/light mode support
 
-**Renderer Process** (`src/App.tsx`):
-- Accesses Electron APIs via `window.electronAPI`
-- Handles UI state and user interactions
+### Security Considerations
+- Sandbox enabled in renderer process
+- Context isolation enforced
+- Node integration disabled in renderer
+- All file system access goes through main process
 
-### State Management Architecture
-- All application state managed in main `App.tsx` component
-- Uses React hooks (`useState`) for local state
-- No external state management library needed for this single-screen application
-- State includes: selected file path, output path, conversion settings
+## Common Tasks
 
-## Build Configuration Notes
+### Adding New IPC Operations
+1. Define request/response types in `shared/types/ipc-contracts.ts`
+2. Add handler in `electron/handlers/`
+3. Register handler in `electron/main.ts`
+4. Add method to preload API interface
+5. Use from renderer via `window.electronAPI`
 
-### TypeScript Configuration
-- **Frontend**: Uses `tsconfig.app.json` with ES2022 modules
-- **Electron**: Uses `electron/tsconfig.json` with NodeNext modules for proper ES module handling
-- **Global definitions**: TypeScript interfaces for Electron API in `src/global.d.ts`
+### Video Format Support
+- Currently supports: MP4, AVI, MOV, MKV, WebM, FLV
+- Add new formats by updating file filters in file selection dialogs
+- FFmpeg handles format detection and conversion automatically
 
-### Vite Configuration
-- Configured with `vite-plugin-electron` and `vite-plugin-electron-renderer`
-- Hot reload support for both main and preload scripts
-- Tailwind CSS integration with `@import "tailwindcss"`
-
-### Electron Builder Configuration
-- Targets Windows x64 platform
-- Configured for portable executable output
-- Note: Code signing currently has permission issues on Windows due to symbolic link requirements
-
-## Design System
-
-### Colors
-- Primary: #0078D4 (Microsoft Blue)
-- Secondary: #6C757D
-- Success: #28A745
-- Error: #DC3545
-
-### Typography
-- Font Family: 'Segoe UI' (Windows native font)
-- Grid System: 8px base grid
-
-### Component Standards
-- Use TypeScript interfaces for all props
-- Follow PascalCase for component files
-- Functional components with React.FC type
-- Custom hooks prefixed with 'use'
-
-## Key Implementation Details
-
-### File Selection Pattern
-The application implements secure file selection through Electron's dialog API:
-```typescript
-// In main.ts
-ipcMain.handle('select-file', async () => {
-  const result = await dialog.showOpenDialog({
-    properties: ['openFile'],
-    filters: [{ name: 'Video Files', extensions: ['mp4', 'avi', 'mov', ...] }]
-  });
-  return result.filePaths;
-});
-
-// In App.tsx
-const filePaths = await window.electronAPI.selectFile();
-```
-
-### Development vs Production Rendering
-- **Development**: Loads from Vite dev server (`http://localhost:5173`)
-- **Production**: Loads from built files (`dist/index.html`)
-- Main process automatically detects environment and loads appropriate source
-
-## Known Issues
-
-### Packaging Limitations
-- `electron-builder` packaging currently fails due to Windows symbolic link permissions with Tailwind CSS WASM dependencies
-- Development and building work correctly
-- Workaround: Tailwind dependencies moved to `devDependencies` to exclude from packaging
-
-### Development Warnings
-- Windows cache permission warnings in development are normal and non-blocking
-- GPU process warnings are typical for Electron development environment
-
-## Application Requirements
-
-Per the PRD documentation:
-- Single-screen application for video file conversion
-- Must support drag & drop and file selection button
-- Real-time conversion progress display
-- User can cancel conversion in progress
-- About dialog accessible to end users
-- Target: Windows 10/11 desktop platforms
-- Distribution: Single portable .exe file (no installation required)
+### Building for Distribution
+- `npm run dist:win` creates portable Windows executable
+- Output in `dist/` directory
+- No installation required - runs as single .exe file
+- Application icon and metadata configured in `package.json` build section

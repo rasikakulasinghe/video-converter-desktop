@@ -230,7 +230,7 @@ export class FileOperationsService {
     audioCodec?: string
   } | null> {
     return new Promise((resolve) => {
-      const ffprobeProcess = spawn(ffprobe, [
+      const ffprobeProcess = spawn(ffprobe.path, [
         '-v', 'quiet',
         '-print_format', 'json',
         '-show_format',
@@ -296,11 +296,11 @@ export class FileOperationsService {
           }
 
           resolve({
-            duration: parseFloat(data.format?.duration || '0'),
+            duration: parseFloat(typedData.format?.duration || '0'),
             width: parseInt(videoStream.width || '0'),
             height: parseInt(videoStream.height || '0'),
             frameRate,
-            bitrate: parseInt(data.format?.bit_rate || videoStream.bit_rate || '0'),
+            bitrate: parseInt(typedData.format?.bit_rate || videoStream.bit_rate || '0'),
             codec: videoStream.codec_name || 'unknown',
             audioCodec: audioStream?.codec_name
           })

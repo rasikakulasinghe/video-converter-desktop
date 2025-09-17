@@ -6,6 +6,9 @@
 
 export { FileOperationsService } from './file-operations.service.js'
 export { ConversionService } from './conversion.service.js'
+export { AppStateService } from './app-state.service.js'
+export { SystemIntegrationService } from './system-integration.service.js'
+export { LoggingService } from './logging.service.js'
 
 // Export types for consumers
 export type {
@@ -20,5 +23,21 @@ export type {
   CancelConversionRequest,
   CancelConversionResponse,
   GetJobsRequest,
-  GetJobsResponse
+  GetJobsResponse,
+  GetSessionRequest,
+  GetSessionResponse,
+  UpdateSessionRequest,
+  UpdateSessionResponse,
+  GetPreferencesRequest,
+  GetPreferencesResponse,
+  SetPreferencesRequest,
+  SetPreferencesResponse,
+  GetAppInfoRequest,
+  GetAppInfoResponse,
+  QuitAppRequest,
+  QuitAppResponse,
+  ShowInExplorerRequest,
+  ShowInExplorerResponse,
+  OpenExternalRequest,
+  OpenExternalResponse
 } from '../../shared/types/ipc-contracts.js'

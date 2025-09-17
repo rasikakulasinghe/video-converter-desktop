@@ -6,7 +6,11 @@
       "Bash(timeout 15s npm run electron:dev)",
       "Bash(npm run build:electron:*)",
       "Bash(npm run lint)",
-      "Bash(npm run electron:pack:*)"
+      "Bash(npm run electron:pack:*)",
+      "Bash(npm run dev:*)",
+      "Bash(timeout 20 npm run dev)",
+      "Bash(npm run build:*)",
+      "Read(//c/Users/user/Pictures/Screenshots/**)"
     ],
     "deny": [],
     "ask": []

@@ -4,133 +4,71 @@ const api = {
   // File Operations
   file: {
     select: async (request) => {
-      const response = await electron.ipcRenderer.invoke("file:select", request);
-      return response.success ? response.data : { success: false, filePaths: [] };
+      return await electron.ipcRenderer.invoke("file:select", request);
     },
     saveLocation: async (request) => {
-      const response = await electron.ipcRenderer.invoke("file:save-location", request);
-      return response.success ? response.data : { success: false };
+      return await electron.ipcRenderer.invoke("file:save-location", request);
     },
     validate: async (request) => {
-      const response = await electron.ipcRenderer.invoke("file:validate", request);
-      return response.success ? response.data : { isValid: false, error: "Validation failed" };
+      return await electron.ipcRenderer.invoke("file:validate", request);
     }
   },
   // Conversion Operations
   conversion: {
     start: async (request) => {
       const response = await electron.ipcRenderer.invoke("conversion:start", request);
-      return response.success ? response.data : { success: false };
+      return response.data || response;
     },
     cancel: async (request) => {
       const response = await electron.ipcRenderer.invoke("conversion:cancel", request);
-      return response.success ? response.data : { success: false };
+      return response.data || response;
     }
   },
   // App State Management
   app: {
     getSession: async (request) => {
       const response = await electron.ipcRenderer.invoke("app:get-session", request);
-      return response.success ? response.data : {
-        session: {
-          id: "",
-          createdAt: /* @__PURE__ */ new Date(),
-          lastActivity: /* @__PURE__ */ new Date(),
-          activeFiles: [],
-          recentFiles: [],
-          activeJobs: []
-        }
-      };
+      return response.data || response;
     },
     updateSession: async (request) => {
       const response = await electron.ipcRenderer.invoke("app:update-session", request);
-      return response.success ? response.data : {
-        session: {
-          id: "",
-          createdAt: /* @__PURE__ */ new Date(),
-          lastActivity: /* @__PURE__ */ new Date(),
-          activeFiles: [],
-          recentFiles: [],
-          activeJobs: []
-        }
-      };
+      return response.data || response;
     },
     getPreferences: async (request) => {
       const response = await electron.ipcRenderer.invoke("app:get-preferences", request);
-      return response.success ? response.data : {
-        output: {
-          defaultOutputDirectory: "",
-          defaultFormat: "mp4",
-          defaultQuality: "medium",
-          organizeByDate: false,
-          preserveOriginalNames: true,
-          namingPattern: "{name}_converted",
-          overwriteExisting: false
-        },
-        conversion: {
-          maxConcurrentJobs: 2,
-          autoStart: true,
-          shutdownWhenComplete: false,
-          showNotifications: true,
-          processPriority: "normal",
-          preserveMetadata: true,
-          generateThumbnails: true
-        },
-        interface: {
-          theme: "system",
-          language: "en",
-          startMinimized: false,
-          minimizeToTray: true,
-          showProgressInTaskbar: true,
-          rememberLastPath: true
-        },
-        advanced: {
-          globalFFmpegArgs: [],
-          hardwareAcceleration: "auto",
-          tempDirectory: "",
-          cleanupTempFiles: true,
-          logLevel: "info",
-          enableMetrics: true,
-          maxLogSize: 50
-        },
-        version: "1.0.0",
-        updatedAt: /* @__PURE__ */ new Date()
-      };
+      return response.data || response;
     },
     setPreferences: async (request) => {
       const response = await electron.ipcRenderer.invoke("app:set-preferences", request);
-      return response.success ? response.data : { success: false, requiresRestart: false };
+      return response.data || response;
     },
     info: async (request) => {
       const response = await electron.ipcRenderer.invoke("app:info", request);
-      return response.success ? response.data : {
-        appInfo: {
-          name: "",
-          version: "",
-          description: "",
-          author: "",
-          homepage: "",
-          license: "",
-          buildDate: "",
-          commitHash: "",
-          environment: ""
-        }
-      };
+      return response.data || response;
     },
     quit: async (request) => {
       const response = await electron.ipcRenderer.invoke("app:quit", request);
-      return response.success ? response.data : { success: false };
+      return response.data || response;
     }
   },
   // System Integration
   system: {
     showInExplorer: async (request) => {
       const response = await electron.ipcRenderer.invoke("system:show-in-explorer", request);
-      return response.success ? response.data : { success: false };
+      return response.data || response;
     },
     openExternal: async (request) => {
       const response = await electron.ipcRenderer.invoke("system:open-external", request);
-      return response.success ? response.data : { success: false };
+      return response.data || response;
+    }
+  },
+  // Diagnostic/Test API for troubleshooting
+  test: {
+    ping: async () => {
+      return await electron.ipcRenderer.invoke("test:ping");
+    },
+    ipcStatus: async () => {
+      return await electron.ipcRenderer.invoke("test:ipc-status");
     }
   },
   // Event Listeners
@@ -161,9 +99,12 @@ const api = {
     electron: process.versions.electron
   }
 };
+console.log("🚀 Preload script is executing...");
 try {
   electron.contextBridge.exposeInMainWorld("electronAPI", api);
+  console.log("✅ electronAPI exposed via contextBridge");
 } catch (error) {
-  console.error(error);
+  console.error("❌ contextBridge failed, falling back to window:", error);
   window.electronAPI = api;
+  console.log("✅ electronAPI set on window object");
 }
